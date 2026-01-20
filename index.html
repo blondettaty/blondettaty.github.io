@@ -12,6 +12,36 @@ body {
     text-align: center;
 }
 
+#mainContainer {
+    display: flex;
+    justify-content: center;
+    gap: 20px; /* espaço entre jogo e loja */
+    align-items: flex-start; /* alinhar topo */
+}
+
+#shop {
+    background: #333;
+    color: white;
+    padding: 15px;
+    border: 2px solid white;
+    width: 200px;
+}
+
+#shop button {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    background: #222;
+    color: white;
+    border: 2px solid white;
+}
+
+#shop button:hover {
+    background: purple;
+}
+
+
 #game {
     width: 400px;
     height: 500px;
@@ -182,28 +212,49 @@ body {
 
 <h1>Triangle Shooter</h1>
 <h2>Pontuação: <span id="score">0</span></h2>
+<h2>munição: <span id="ammonition">0</span></h2>
 
-<div id="bossBarContainer" style="display:none; width:400px; margin:auto; background:#444;">
-    <div id="bossBar" style="height:15px; width:100%; background:purple;"></div>
-</div>
+<!-- Container principal com jogo + loja -->
+<div id="mainContainer" style="display:flex; justify-content:center; gap:20px;">
 
-<div id="game">
-    <div id="player"></div>
+    <!-- Área do jogo -->
+    <div>
+        <div id="bossBarContainer" style="display:none; width:400px; margin-bottom:10px; background:#444;">
+            <div id="bossBar" style="height:15px; width:100%; background:purple;"></div>
+        </div>
+        <div id="game">
+            <div id="player"></div>
+        </div>
+    </div>
+
+    <!-- Loja -->
+    <div id="shop">
+        <h3>Loja</h3>
+        <p>Pontos: <span id="shopPoints">0</span></p>
+        <button onclick="buySpeed()">+ Velocidade (5 pts)</button><br><br>
+        <button onclick="buyFireRate()">+ Tiro rápido (10 pts)</button><br><br>
+        <button onclick="buyMultiShot()">+ Tiros múltiplos (15 pts)</button><br><br>
+        <button onclick="buyBomb()">Bomba (20 pts)</button>
+    </div>
+
 </div>
 
 <script>
 const game = document.getElementById("game");
 const player = document.getElementById("player");
 const scoreText = document.getElementById("score");
+const ammunitionText = document.getElementById("ammonition");
 
 let score = 0;
 let enemies = [];
+let ammunition = 60;
+ammunitionText.textContent = ammunition;
 
 let playerX = 185;
 let playerY = 10;
 let direction = "up";
 
-const speed = 8;
+const speed = 7.3;
 const maxX = 370;
 const maxY = 460;
 
@@ -298,7 +349,7 @@ function gameOver() {
     deadSound.play();
     const overlay = document.createElement("div");
     overlay.id = "gameOverScreen";
-    overlay.innerHTML = `<h1>GAME OVER</h1><p>Pontuação final: <strong>${score}</strong></p><button id="restartBtn">Reiniciar</button>`;
+    overlay.innerHTML = `<h1>GAME OVER</h1><p>Pontuação final: <strong>${score}</strong> </p><button id="restartBtn">Reiniciar</button>`;
     game.appendChild(overlay);
     document.getElementById("restartBtn").onclick = restartGame;
 }
@@ -306,6 +357,7 @@ function gameOver() {
 function restartGame() {
     document.getElementById("gameOverScreen").remove();
     score = 0; scoreText.textContent = 0;
+    ammunition = 60; ammunitionText.textContent = ammunition;
     playerX = 185; playerY = 10; direction = "up"; rotatePlayer("up");
     gameRunning = true; bossActive = false;
     document.getElementById("bossBarContainer").style.display = "none";
@@ -328,7 +380,8 @@ function rotatePlayer(dir) {
 
 /* TIRO DO PLAYER */
 function shoot() {
-    if(!gameRunning) return;
+    if(!gameRunning || ammunition < 0) return;
+    ammunitionText.textContent = ammunition;
     const bullet=document.createElement("div");
     bullet.className="bullet";
     let bulletX=playerX+12;
@@ -372,6 +425,7 @@ function shoot() {
             bullet.remove(); clearInterval(interval);
         }
     },30);
+    ammunition --;
 }
 
 /* INIMIGO COMUM */
@@ -389,6 +443,7 @@ function createEnemy() {
         enemyY-=3; enemy.style.bottom=enemyY+"px";
         if(enemyY<-30){ enemy.remove(); clearInterval(interval); }
         if(checkCollision(enemy,player)) gameOver();
+        if (enemyY < 1) gameOver()
     },30);
     enemies.push({element:enemy,interval});
 }
