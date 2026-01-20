@@ -211,7 +211,8 @@ body {
 <body>
 
 <h1>Triangle Shooter</h1>
-<h2>Pontuação: <span id="score">0</span></h2>
+<h2>Score <span id="score">0</span></h2>
+<h2>Pontuação: <span id="points">0</span></h2>
 <h2>munição: <span id="ammonition">0</span></h2>
 
 <!-- Container principal com jogo + loja -->
@@ -231,10 +232,10 @@ body {
     <div id="shop">
         <h3>Loja</h3>
         <p>Pontos: <span id="shopPoints">0</span></p>
-        <button onclick="buySpeed()">+ Velocidade (5 pts)</button><br><br>
-        <button onclick="buyFireRate()">+ Tiro rápido (10 pts)</button><br><br>
-        <button onclick="buyMultiShot()">+ Tiros múltiplos (15 pts)</button><br><br>
-        <button onclick="buyBomb()">Bomba (20 pts)</button>
+        <button onclick="buyMunition()">+ Munição (20 pts)</button><br><br>
+        <button onclick="buyFireRate()">+ Tiro rápido (20 pts)</button><br><br>
+        <!-- <button onclick="buyMultiShot()">+ Tiros múltiplos (15 pts)</button><br><br>
+        <button onclick="buyBomb()">Bomba (20 pts)</button> -->
     </div>
 
 </div>
@@ -243,18 +244,21 @@ body {
 const game = document.getElementById("game");
 const player = document.getElementById("player");
 const scoreText = document.getElementById("score");
+const pointText = document.getElementById("points")
 const ammunitionText = document.getElementById("ammonition");
 
 let score = 0;
 let enemies = [];
+let points = 20;
 let ammunition = 60;
 ammunitionText.textContent = ammunition;
+pointText.textContent = points;
 
 let playerX = 185;
 let playerY = 10;
 let direction = "up";
 
-const speed = 7.3;
+let speed = 7.3;
 const maxX = 370;
 const maxY = 460;
 
@@ -357,6 +361,7 @@ function gameOver() {
 function restartGame() {
     document.getElementById("gameOverScreen").remove();
     score = 0; scoreText.textContent = 0;
+    points = 0; pointText.textContent = 0;
     ammunition = 60; ammunitionText.textContent = ammunition;
     playerX = 185; playerY = 10; direction = "up"; rotatePlayer("up");
     gameRunning = true; bossActive = false;
@@ -377,6 +382,46 @@ function rotatePlayer(dir) {
     if(dir==="down") player.style.transform="rotate(180deg)";
     if(dir==="left") player.style.transform="rotate(270deg)";
 }
+
+function buyMunition() {
+    if (points < 20) return;
+    if (!gameRunning) return;
+    console.log(ammunition)
+
+    points -= 20;
+    pointText.textContent = points;
+
+    ammunition += 25;
+    ammunitionText.textContent = ammunition;
+}
+
+
+let fire = false;
+function buyFireRate() {
+    if (points < 20) return;
+    if (!gameRunning) return;
+    if (fire) return; // evita ativar duas vezes
+
+    fire = true;
+    savedAmmo = ammunition;
+
+    ammunition = Infinity;
+    ammunitionText.textContent = "∞";
+
+    setTimeout(() => {
+        fire = false;
+        ammunition = savedAmmo;
+        ammunitionText.textContent = ammunition;
+    }, 2000);
+
+    points -= 20    
+}
+
+
+function buyMultiShot() {
+
+}
+
 
 /* TIRO DO PLAYER */
 function shoot() {
@@ -408,6 +453,7 @@ function shoot() {
                 bullet.remove();
                 clearInterval(interval);
                 score++; scoreText.textContent=score;
+                points++;pointText.textContent=points;
             }
         });
 
@@ -418,6 +464,7 @@ function shoot() {
                 bossActive=false; boss.remove(); boss=null; clearInterval(bossShootInterval);
                 document.getElementById("bossBarContainer").style.display="none";
                 score+=15;
+                points+=15;
             }
         }
 
@@ -494,6 +541,10 @@ function gameLoop(){
 
     player.style.left=playerX+"px";
     player.style.bottom=playerY+"px";
+
+    if (fire == true) {
+        shoot();
+    }
 
     requestAnimationFrame(gameLoop);
 }
