@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Triangle Shooter</title>
+
+<style>
+body {
+    background: #111;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+#game {
+    width: 400px;
+    height: 500px;
+    background: #222;
+    margin: auto;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid white;
+}
+
+#player {
+    width: 30px;
+    height: 30px;
+    background: rgb(0, 255, 8);
+    position: absolute;
+    bottom: 10px;
+    left: 185px;
+    clip-path: polygon(50% 0, 0 100%, 100% 100%);
+    transform-origin: center;
+}
+
+.enemy {
+    width: 30px;
+    height: 30px;
+    background: red;
+    position: absolute;
+    border-radius: 4px;
+}
+
+/* Olhos */
+.enemy::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    left: 6px;
+    width: 4px;
+    height: 4px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 10px 0 white;
+}
+
+/* Boca */
+.enemy::after {
+    content: "";
+    position: absolute;
+    bottom: 7px;
+    left: 8px;
+    width: 14px;
+    height: 6px;
+    border-bottom: 2px solid white;
+    border-radius: 0 0 10px 10px;
+}
+
+.enemyBoss {
+    width: 80px;
+    height: 80px;
+    background: darkred;
+    position: absolute;
+    border-radius: 12px;
+    box-shadow:
+        inset 0 -8px 0 rgba(0,0,0,0.35),
+        0 0 10px rgba(0,0,0,0.5);
+}
+
+/* OLHOS (mais fechados) */
+.enemyBoss::before {
+    content: "";
+    position: absolute;
+    top: 26px;
+    left: 16px;
+    width: 14px;
+    height: 10px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 34px 0 white;
+}
+
+/* PUPILAS */
+.enemyBoss::after {
+    content: "";
+    position: absolute;
+    top: 29px;
+    left: 20px;
+    width: 6px;
+    height: 6px;
+    background: black;
+    border-radius: 50%;
+    box-shadow: 34px 0 black;
+}
+
+/* SOBRANCELHAS */
+.enemyBoss .brows {
+    position: absolute;
+    top: 18px;
+    left: 14px;
+    width: 18px;
+    height: 4px;
+    background: black;
+    transform: rotate(20deg);
+    box-shadow: 36px 0 black;
+}
+
+.enemyBoss .brows::after {
+    content: "";
+    position: absolute;
+    left: 36px;
+    top: 0;
+    width: 18px;
+    height: 4px;
+    background: black;
+    transform: rotate(-40deg);
+}
+
+/* BOCA (raiva) */
+.enemyBoss .mouth {
+    position: absolute;
+    bottom: 18px;
+    left: 22px;
+    width: 36px;
+    height: 12px;
+    border-top: 4px solid black;
+    border-radius: 30px 30px 0 0;
+}
+
+.bullet {
+    width: 6px;
+    height: 6px;
+    background: orange;
+    position: absolute;
+    border-radius: 50%;
+}
+
+#gameOverScreen {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+#gameOverScreen h1 {
+    font-size: 36px;
+    margin-bottom: 10px;
+    color: red;
+}
+
+#gameOverScreen button {
+    padding: 12px 24px;
+    font-size: 18px;
+    cursor: pointer;
+    background: #222;
+    color: white;
+    border: 2px solid white;
+}
+
+#gameOverScreen button:hover {
+    background: red;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Triangle Shooter</h1>
+<h2>Pontuação: <span id="score">0</span></h2>
+
+<div id="bossBarContainer" style="display:none; width:400px; margin:auto; background:#444;">
+    <div id="bossBar" style="height:15px; width:100%; background:purple;"></div>
+</div>
+
+<div id="game">
+    <div id="player"></div>
+</div>
+
+<script>
+const game = document.getElementById("game");
+const player = document.getElementById("player");
+const scoreText = document.getElementById("score");
+
+let score = 0;
+let enemies = [];
+
+let playerX = 185;
+let playerY = 10;
+let direction = "up";
+
+const speed = 8;
+const maxX = 370;
+const maxY = 460;
+
+const keys = {};
+let canShoot = true;
+
+/* BOSS */
+let boss = null;
+let bossLife = 30;
+let bossMaxLife = 30;
+let bossActive = false;
+let bossShootInterval = null;
+
+let gameRunning = true;
+let gamePaused = false;
+let pauseScreen = null;
+
+
+/* SONS */
+const shootSound = new Audio("https://www.myinstants.com/media/sounds/tiro-glock.mp3");
+shootSound.volume = 0.4;
+
+const deadSound = new Audio("https://www.myinstants.com/media/sounds/villager.mp3");
+deadSound.volume = 1;
+
+const bossSpawnSound = new Audio("https://www.myinstants.com/media/sounds/undertale-cinematiccut.mp3")
+bossSpawnSound.volume = 1;
+
+/* TECLAS */
+document.addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+
+    if (e.code === "Space" && canShoot) {
+        shoot();
+        canShoot = false;
+    }
+
+    // Pausar / Retomar
+    if (e.key.toLowerCase() === "p") {
+        togglePause();
+    }
+});
+
+document.addEventListener("keyup", e => {
+    keys[e.key.toLowerCase()] = false;
+
+    if (e.code === "Space") {
+        canShoot = true;
+    }
+});
+
+function togglePause() {
+    if (!gameRunning) return;
+
+    gamePaused = !gamePaused;
+
+    if (gamePaused) {
+        pauseScreen = document.createElement("div");
+        pauseScreen.style.position = "absolute";
+        pauseScreen.style.inset = "0";
+        pauseScreen.style.background = "rgba(0,0,0,0.7)";
+        pauseScreen.style.display = "flex";
+        pauseScreen.style.alignItems = "center";
+        pauseScreen.style.justifyContent = "center";
+        pauseScreen.style.fontSize = "36px";
+        pauseScreen.style.zIndex = "998";
+        pauseScreen.textContent = "PAUSADO";
+
+        game.appendChild(pauseScreen);
+    } else {
+        if (pauseScreen) {
+            pauseScreen.remove();
+            pauseScreen = null;
+        }
+        requestAnimationFrame(gameLoop);
+    }
+}
+
+/* FUNÇÕES EXISTENTES (STOP, GAMEOVER, RESTART, COLISÃO, ROTACIONAR, SHOOT, ENEMIGO, BOSS) */
+function stopGame() {
+    gameRunning = false;
+    enemies.forEach(enemy => { clearInterval(enemy.interval); enemy.element.remove(); });
+    enemies = [];
+    if (bossActive && boss) { clearInterval(bossShootInterval); boss.remove(); boss=null; bossActive=false; }
+    document.querySelectorAll(".bullet").forEach(b=>b.remove());
+}
+
+function gameOver() {
+    if (!gameRunning) return;
+    stopGame();
+    deadSound.currentTime = 0;
+    deadSound.play();
+    const overlay = document.createElement("div");
+    overlay.id = "gameOverScreen";
+    overlay.innerHTML = `<h1>GAME OVER</h1><p>Pontuação final: <strong>${score}</strong></p><button id="restartBtn">Reiniciar</button>`;
+    game.appendChild(overlay);
+    document.getElementById("restartBtn").onclick = restartGame;
+}
+
+function restartGame() {
+    document.getElementById("gameOverScreen").remove();
+    score = 0; scoreText.textContent = 0;
+    playerX = 185; playerY = 10; direction = "up"; rotatePlayer("up");
+    gameRunning = true; bossActive = false;
+    document.getElementById("bossBarContainer").style.display = "none";
+    gameLoop();
+}
+
+function checkCollision(a,b) {
+    return a.getBoundingClientRect().left < b.getBoundingClientRect().right &&
+           a.getBoundingClientRect().right > b.getBoundingClientRect().left &&
+           a.getBoundingClientRect().top < b.getBoundingClientRect().bottom &&
+           a.getBoundingClientRect().bottom > b.getBoundingClientRect().top;
+}
+
+function rotatePlayer(dir) {
+    if(dir==="up") player.style.transform="rotate(0deg)";
+    if(dir==="right") player.style.transform="rotate(90deg)";
+    if(dir==="down") player.style.transform="rotate(180deg)";
+    if(dir==="left") player.style.transform="rotate(270deg)";
+}
+
+/* TIRO DO PLAYER */
+function shoot() {
+    if(!gameRunning) return;
+    const bullet=document.createElement("div");
+    bullet.className="bullet";
+    let bulletX=playerX+12;
+    let bulletY=playerY+12;
+    const bulletDirection=direction;
+    bullet.style.left=bulletX+"px";
+    bullet.style.bottom=bulletY+"px";
+    game.appendChild(bullet);
+    shootSound.currentTime=0; shootSound.play();
+
+    const interval=setInterval(()=>{
+        if(bulletDirection==="up") bulletY+=20;
+        if(bulletDirection==="down") bulletY-=20;
+        if(bulletDirection==="left") bulletX-=20;
+        if(bulletDirection==="right") bulletX+=20;
+        bullet.style.left=bulletX+"px";
+        bullet.style.bottom=bulletY+"px";
+
+        enemies.forEach((enemy,i)=>{
+            if(checkCollision(bullet,enemy.element)){
+                enemy.element.remove();
+                clearInterval(enemy.interval);
+                enemies.splice(i,1);
+                bullet.remove();
+                clearInterval(interval);
+                score++; scoreText.textContent=score;
+            }
+        });
+
+        if(bossActive && boss && checkCollision(bullet,boss)){
+            bullet.remove(); clearInterval(interval);
+            bossLife--; updateBossBar();
+            if(bossLife<=0){
+                bossActive=false; boss.remove(); boss=null; clearInterval(bossShootInterval);
+                document.getElementById("bossBarContainer").style.display="none";
+                score+=15;
+            }
+        }
+
+        if(bulletY>500||bulletY<0||bulletX<0||bulletX>400){
+            bullet.remove(); clearInterval(interval);
+        }
+    },30);
+}
+
+/* INIMIGO COMUM */
+function createEnemy() {
+    if(!gameRunning) return;
+    const enemy=document.createElement("div");
+    enemy.className="enemy";
+    let enemyX=Math.random()*370;
+    let enemyY=500;
+    enemy.style.left=enemyX+"px";
+    enemy.style.bottom=enemyY+"px";
+    game.appendChild(enemy);
+    const interval=setInterval(()=>{
+        if(gamePaused) return;
+        enemyY-=3; enemy.style.bottom=enemyY+"px";
+        if(enemyY<-30){ enemy.remove(); clearInterval(interval); }
+        if(checkCollision(enemy,player)) gameOver();
+    },30);
+    enemies.push({element:enemy,interval});
+}
+
+/* BOSS */
+function createBoss() {
+    if(!gameRunning) return;
+    bossSpawnSound.play(); bossActive=true; bossLife=bossMaxLife;
+    boss=document.createElement("div"); boss.className="enemyBoss"; boss.style.width="80px"; boss.style.height="80px"; boss.style.background="purple";
+    let bossX=160, bossY=420; boss.style.left=bossX+"px"; boss.style.bottom=bossY+"px"; game.appendChild(boss);
+    document.getElementById("bossBarContainer").style.display="block"; updateBossBar();
+    setInterval(()=>{
+        if(!bossActive||gamePaused) return;
+        bossX+=Math.sin(Date.now()/400)*3; boss.style.left=bossX+"px";
+        if(checkCollision(boss,player)) gameOver();
+    },30);
+    bossShootInterval=setInterval(bossShoot,700);
+}
+
+function bossShoot(){
+    if(!bossActive||!boss) return;
+    const bullet=document.createElement("div");
+    bullet.className="bullet"; bullet.style.background="violet";
+    let x=boss.offsetLeft+40; let y=boss.offsetTop+80;
+    bullet.style.left=x+"px"; bullet.style.top=y+"px"; game.appendChild(bullet);
+    const interval=setInterval(()=>{
+        if(gamePaused) return;
+        y+=8; bullet.style.top=y+"px";
+        if(checkCollision(bullet,player)) gameOver();
+        if(y>500){ bullet.remove(); clearInterval(interval); }
+    },30);
+}
+
+function updateBossBar(){
+    const bar=document.getElementById("bossBar");
+    bar.style.width=(bossLife/bossMaxLife)*100+"%";
+}
+
+/* LOOP DO JOGO */
+function gameLoop(){
+    if(!gameRunning || gamePaused) return;
+
+    if((keys["a"]||keys["arrowleft"]) && playerX>0) playerX-=speed;
+    if((keys["d"]||keys["arrowright"]) && playerX<maxX) playerX+=speed;
+
+    if((keys["w"]||keys["arrowup"]) && playerY<maxY){ playerY+=speed; direction="up"; rotatePlayer("up"); }
+    if((keys["s"]||keys["arrowdown"]) && playerY>0){ playerY-=speed; direction="down"; rotatePlayer("down"); }
+
+    player.style.left=playerX+"px";
+    player.style.bottom=playerY+"px";
+
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+
+/* SPAWN */
+setInterval(()=>{
+    if(!bossActive) createEnemy();
+    if(score== 20 && !bossActive) createBoss();
+},1200);
+
+</script>
+
+</body>
+</html>
